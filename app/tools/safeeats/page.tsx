@@ -159,9 +159,12 @@ export default function SafeEatsPage() {
         safety: analyzeSafety(p)
       }));
       
-      setResults(withSafety.sort((a, b) => b.safety.score - a.safety.score));
-    } catch (err) {
-      setError("Search failed. Please try again.");
+      setResults(
+  withSafety.sort(
+    (a: { safety: { score: number } }, b: { safety: { score: number } }) =>
+      b.safety.score - a.safety.score
+  )
+);
     } finally {
       setLoading(false);
     }
