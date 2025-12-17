@@ -154,9 +154,12 @@ export default function TruePricePage() {
         };
       });
       
-      setResults(withPrices.filter(p => p.truePrice.total <= budget));
-    } catch (err) {
-      setError("Search failed. Please try again.");
+setResults(
+  withPrices.filter(
+    (p: { truePrice: { total: number } }) => p.truePrice.total <= budget
+  )
+);
+
     } finally {
       setLoading(false);
     }
