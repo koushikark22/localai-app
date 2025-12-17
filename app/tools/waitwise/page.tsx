@@ -226,13 +226,15 @@ export default function WaitWisePage() {
       // Sort: Open restaurants first, then by wait time
       const sorted = withWaitTimes.sort(
   (
-    a: { waitTime: { minutes: number } },
-    b: { waitTime: { minutes: number } }
+    a: { wait: { min: number }; openStatus: { isOpen: boolean | null } },
+    b: { wait: { min: number }; openStatus: { isOpen: boolean | null } }
   ) => {
-        if (a.openStatus.isOpen === true && b.openStatus.isOpen !== true) return -1;
-        if (a.openStatus.isOpen !== true && b.openStatus.isOpen === true) return 1;
-        return a.wait.min - b.wait.min;
-      });
+    if (a.openStatus.isOpen === true && b.openStatus.isOpen !== true) return -1;
+    if (a.openStatus.isOpen !== true && b.openStatus.isOpen === true) return 1;
+    return a.wait.min - b.wait.min;
+  }
+);
+
       
       setResults(sorted);
     } catch (err) {
