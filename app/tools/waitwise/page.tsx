@@ -224,7 +224,11 @@ export default function WaitWisePage() {
       }));
       
       // Sort: Open restaurants first, then by wait time
-      const sorted = withWaitTimes.sort((a, b) => {
+      const sorted = withWaitTimes.sort(
+  (
+    a: { waitTime: { minutes: number } },
+    b: { waitTime: { minutes: number } }
+  ) => {
         if (a.openStatus.isOpen === true && b.openStatus.isOpen !== true) return -1;
         if (a.openStatus.isOpen !== true && b.openStatus.isOpen === true) return 1;
         return a.wait.min - b.wait.min;

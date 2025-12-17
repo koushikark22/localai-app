@@ -532,7 +532,8 @@ export default function HomePage() {
     setFavorites(prev => {
       const exists = prev.find(p => p.id === provider.id);
       if (exists) {
-        return prev.filter(p => p.id !== provider.id);
+        return prev.filter((p: { id: string }) => p.id !== provider.id);
+
       } else {
         return [provider, ...prev].slice(0, 50);
       }
@@ -577,7 +578,12 @@ export default function HomePage() {
       provider: p,
       confidence: computeConfidence(p, userText, aiText, prefs),
       pitfalls: pitfallsFor(p, userText),
-    })).sort((a, b) => b.confidence.score - a.confidence.score);
+    })).sort(
+  (
+    a: { confidence: { score: number } },
+    b: { confidence: { score: number } }
+  ) => b.confidence.score - a.confidence.score
+);
   }, [providers, userText, aiText, prefs]);
 
   return (
