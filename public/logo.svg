@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0ea5e9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d946ef;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="80" fill="url(#bg)"/>
+  
+  <!-- Location pin icon -->
+  <path d="M256 128C204.8 128 163.2 169.6 163.2 220.8C163.2 291.2 256 416 256 416C256 416 348.8 291.2 348.8 220.8C348.8 169.6 307.2 128 256 128ZM256 252.8C238.933 252.8 225.067 238.933 225.067 221.867C225.067 204.8 238.933 190.933 256 190.933C273.067 190.933 286.933 204.8 286.933 221.867C286.933 238.933 273.067 252.8 256 252.8Z" fill="white"/>
+  
+  <!-- AI sparkles -->
+  <circle cx="150" cy="180" r="12" fill="white" opacity="0.8"/>
+  <circle cx="362" cy="180" r="12" fill="white" opacity="0.8"/>
+  <circle cx="200" cy="320" r="10" fill="white" opacity="0.6"/>
+  <circle cx="312" cy="320" r="10" fill="white" opacity="0.6"/>
+</svg>
