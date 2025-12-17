@@ -37,6 +37,52 @@ export default function DateStackPage() {
     }
   };
 
+  const getMockPlan = () => {
+    const mockData: any = {
+      "Romantic-100": {
+        dinner: { name: "Cozy Italian Trattoria", rating: 4.5, categories: ["Italian", "Wine Bar"], cost: 55, address: "Downtown" },
+        activity: { name: "Jazz Lounge", rating: 4.3, categories: ["Music Venues"], cost: 35, address: "Arts District" }
+      },
+      "Romantic-150": {
+        dinner: { name: "Upscale French Bistro", rating: 4.7, categories: ["French", "Fine Dining"], cost: 85, address: "Historic District" },
+        activity: { name: "Wine Tasting Room", rating: 4.6, categories: ["Wine Bars"], cost: 55, address: "Vineyard Row" }
+      },
+      "Romantic-200": {
+        dinner: { name: "Michelin Star Restaurant", rating: 4.9, categories: ["Fine Dining"], cost: 120, address: "Waterfront" },
+        activity: { name: "Rooftop Cocktail Bar", rating: 4.8, categories: ["Cocktail Bars"], cost: 70, address: "Skyline Tower" }
+      },
+      "Fun-100": {
+        dinner: { name: "Sports Bar & Grill", rating: 4.2, categories: ["American", "Sports Bars"], cost: 50, address: "Stadium District" },
+        activity: { name: "Bowling Alley", rating: 4.4, categories: ["Bowling"], cost: 40, address: "Entertainment Zone" }
+      },
+      "Fun-150": {
+        dinner: { name: "Burger Joint & Craft Beer", rating: 4.5, categories: ["Burgers", "Breweries"], cost: 75, address: "Brewery District" },
+        activity: { name: "Arcade & Bar", rating: 4.6, categories: ["Arcade"], cost: 60, address: "Gaming Center" }
+      },
+      "Chill-100": {
+        dinner: { name: "Vegetarian Cafe", rating: 4.4, categories: ["Vegetarian", "Cafes"], cost: 50, address: "Wellness District" },
+        activity: { name: "Bookstore Cafe", rating: 4.5, categories: ["Bookstores"], cost: 35, address: "Literary Lane" }
+      },
+      "Adventurous-150": {
+        dinner: { name: "Exotic Fusion Kitchen", rating: 4.6, categories: ["Fusion", "Asian"], cost: 80, address: "International Quarter" },
+        activity: { name: "Escape Room", rating: 4.7, categories: ["Escape Games"], cost: 60, address: "Mystery Mall" }
+      }
+    };
+
+    const budgetTier = budget <= 100 ? 100 : budget <= 175 ? 150 : 200;
+    const key = `${vibe}-${budgetTier}`;
+    const data = mockData[key] || mockData["Romantic-150"];
+    
+    return {
+      dinner: { ...data.dinner, url: "https://www.yelp.com", time: "7:00 PM", duration: "1.5 hours" },
+      activity: { ...data.activity, url: "https://www.yelp.com", time: "9:00 PM", duration: "2 hours" },
+      total: data.dinner.cost + data.activity.cost,
+      timeline: "7:00 PM - 11:00 PM",
+      vibe,
+      date: date || new Date().toLocaleDateString()
+    };
+  };
+
   const generatePlan = async () => {
     if (!latitude || !longitude) {
       setError("Please set location first!");
@@ -48,7 +94,8 @@ export default function DateStackPage() {
     setPlan(null);
     
     try {
-      // Search for dinner
+      console.log("Calling API with:", { latitude, longitude, vibe });
+      
       const dinnerRes = await fetch("/api/yelp-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,15 +105,18 @@ export default function DateStackPage() {
           longitude
         })
       });
+      
       const dinnerData = await dinnerRes.json();
+      console.log("Dinner API response:", dinnerData);
       
       if (dinnerData.error) {
-        setError("Search failed. Please try again later.");
+        console.log("API error, using mock data");
+        setPlan(getMockPlan());
+        setError("Using sample data (API limit reached)");
         setLoading(false);
         return;
       }
 
-      // Search for activity
       const activityRes = await fetch("/api/yelp-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -79,11 +129,18 @@ export default function DateStackPage() {
           longitude
         })
       });
+      
       const activityData = await activityRes.json();
       
-      // Filter by budget
-      const dinnerBudget = budget * 0.6; // 60% for dinner
-      const activityBudget = budget * 0.4; // 40% for activity
+      if (activityData.error) {
+        setPlan(getMockPlan());
+        setError("Using sample data (API limit reached)");
+        setLoading(false);
+        return;
+      }
+      
+      const dinnerBudget = budget * 0.6;
+      const activityBudget = budget * 0.4;
       
       const dinners = (dinnerData.providers || []).map((p: any) => ({
         ...p,
@@ -96,7 +153,8 @@ export default function DateStackPage() {
       })).filter((p: any) => p.estimatedCost <= activityBudget);
       
       if (dinners.length === 0 || activities.length === 0) {
-        setError("No options found within budget. Try increasing your budget!");
+        setPlan(getMockPlan());
+        setError("Using sample data (no results within budget)");
         setLoading(false);
         return;
       }
@@ -106,7 +164,6 @@ export default function DateStackPage() {
       
       setPlan({
         dinner: {
-          id: dinner.id,
           name: dinner.name,
           url: dinner.url,
           rating: dinner.rating,
@@ -117,7 +174,6 @@ export default function DateStackPage() {
           address: dinner.address
         },
         activity: {
-          id: activity.id,
           name: activity.name,
           url: activity.url,
           rating: activity.rating,
@@ -133,21 +189,22 @@ export default function DateStackPage() {
         date: date || new Date().toLocaleDateString()
       });
     } catch (err) {
-      setError("Failed to create plan. Please try again.");
+      console.error("Error:", err);
+      setPlan(getMockPlan());
+      setError("Using sample data (connection issue)");
     } finally {
       setLoading(false);
     }
   };
 
-  // Reset plan when budget or vibe changes
   const handleBudgetChange = (newBudget: number) => {
     setBudget(newBudget);
-    if (plan) setPlan(null); // Clear existing plan
+    if (plan) setPlan(null);
   };
 
   const handleVibeChange = (newVibe: string) => {
     setVibe(newVibe);
-    if (plan) setPlan(null); // Clear existing plan
+    if (plan) setPlan(null);
   };
 
   return (
@@ -223,8 +280,8 @@ export default function DateStackPage() {
             </div>
             
             {error && (
-              <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">
-                {error}
+              <div className="p-3 bg-yellow-50 text-yellow-800 rounded-lg text-sm">
+                ℹ️ {error}
               </div>
             )}
             
@@ -245,7 +302,6 @@ export default function DateStackPage() {
               <p className="text-gray-600 mb-4">{plan.timeline} • {plan.vibe} vibe</p>
               
               <div className="space-y-4">
-                {/* Dinner */}
                 <div className="border-l-4 border-red-500 pl-4">
                   <div className="flex items-start gap-4">
                     <div className="text-4xl">🍽️</div>
@@ -255,19 +311,10 @@ export default function DateStackPage() {
                       <p className="text-red-600 font-bold mt-2">{plan.dinner.time} • {plan.dinner.duration}</p>
                       <p className="text-2xl font-bold text-red-600">${plan.dinner.cost}</p>
                       <p className="text-xs text-gray-500 mt-1">📍 {plan.dinner.address}</p>
-                      <a 
-                        href={plan.dinner.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="inline-block mt-2 text-red-600 hover:underline text-sm"
-                      >
-                        View on Yelp →
-                      </a>
                     </div>
                   </div>
                 </div>
 
-                {/* Activity */}
                 <div className="border-l-4 border-pink-500 pl-4">
                   <div className="flex items-start gap-4">
                     <div className="text-4xl">🎭</div>
@@ -277,28 +324,14 @@ export default function DateStackPage() {
                       <p className="text-pink-600 font-bold mt-2">{plan.activity.time} • {plan.activity.duration}</p>
                       <p className="text-2xl font-bold text-pink-600">${plan.activity.cost}</p>
                       <p className="text-xs text-gray-500 mt-1">📍 {plan.activity.address}</p>
-                      <a 
-                        href={plan.activity.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="inline-block mt-2 text-pink-600 hover:underline text-sm"
-                      >
-                        View on Yelp →
-                      </a>
                     </div>
                   </div>
                 </div>
 
-                {/* Total */}
                 <div className="bg-red-50 rounded-lg p-4 flex justify-between items-center">
                   <div>
                     <p className="text-sm text-gray-600">Total Cost</p>
                     <p className="text-3xl font-bold text-red-600">${plan.total}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {plan.total <= budget * 0.8 ? "✓ Well within budget!" : 
-                       plan.total <= budget ? "✓ Within budget" : 
-                       "⚠️ Slightly over budget"}
-                    </p>
                   </div>
                   <button className="bg-red-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-700">
                     Save Plan

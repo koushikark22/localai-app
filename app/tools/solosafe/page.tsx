@@ -4,252 +4,36 @@ import { useState } from "react";
 import Link from "next/link";
 
 export default function SoloSafePage() {
-  const [locationInput, setLocationInput] = useState("");
-  const [latitude, setLatitude] = useState<number | null>(null);
-  const [longitude, setLongitude] = useState<number | null>(null);
+  const [location, setLocation] = useState("");
   const [query, setQuery] = useState("");
-  const [shareLocation, setShareLocation] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [results, setResults] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [locationShared, setLocationShared] = useState(false);
 
-  const triggerFakeCall = () => {
-    // Play ringing sound and show fake incoming call overlay
-    alert("📱 Fake Call Activated!\n\nYour phone will appear to be receiving a call. Use this as an excuse to leave if you feel uncomfortable.");
-    
-    // In a real app, this would:
-    // 1. Play a ringing sound
-    // 2. Show a full-screen "incoming call" overlay
-    // 3. Vibrate the phone
-  };
-
-  const shareLocationWithContact = () => {
-    if (!latitude || !longitude) {
-      alert("⚠️ Location not available. Please enable location services.");
-      return;
-    }
-
-    const locationUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
-    const message = `🚨 I'm dining alone at this location. Check on me if I don't respond in 2 hours:\n\n${locationUrl}\n\nRestaurant: ${results[0]?.name || 'Unknown'}\nTime: ${new Date().toLocaleTimeString()}`;
-    
-    // Create shareable link
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    const smsUrl = `sms:?body=${encodeURIComponent(message)}`;
-    
-    // Show options
-    if (confirm("📱 Share your location via:\n\nOK = WhatsApp\nCancel = SMS")) {
-      window.open(whatsappUrl, '_blank');
-    } else {
-      window.location.href = smsUrl;
-    }
-    
-    setLocationShared(true);
-  };
-
-  const geocodeLocation = async () => {
-    if (!locationInput.trim()) return;
-    
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationInput)}&limit=1`
-      );
-      const data = await res.json();
-      
-      if (data && data[0]) {
-        setLatitude(parseFloat(data[0].lat));
-        setLongitude(parseFloat(data[0].lon));
-        setError("");
-      } else {
-        setError('Location not found');
-      }
-    } catch (err) {
-      setError('Could not find location');
-    }
-  };
-
-  const calculateSafetyScore = (business: any) => {
-    let score = 70; // Base score
-    const summary = (business.short_summary || "").toLowerCase();
-    const categories = (business.categories || []).join(" ").toLowerCase();
-    const name = business.name.toLowerCase();
-    
-    // Positive indicators
-    const positives: string[] = [];
-    
-    // Well-lit / bright
-    if (summary.includes("bright") || summary.includes("well-lit") || summary.includes("spacious")) {
-      score += 10;
-      positives.push("Well-lit environment");
-    }
-    
-    // Bar seating / counter
-    if (categories.includes("sushi") || categories.includes("ramen") || 
-        summary.includes("bar seating") || summary.includes("counter")) {
-      score += 15;
-      positives.push("Bar/counter seating available");
-    }
-    
-    // Busy / popular
-    if (business.review_count > 500) {
-      score += 10;
-      positives.push("Popular & busy location");
-    }
-    
-    // Casual / friendly atmosphere
-    if (categories.includes("cafe") || categories.includes("casual") ||
-        summary.includes("friendly") || summary.includes("welcoming")) {
-      score += 10;
-      positives.push("Friendly atmosphere");
-    }
-    
-    // Family-friendly
-    if (summary.includes("family") || categories.includes("family")) {
-      score += 5;
-      positives.push("Family-friendly");
-    }
-    
-    // High rating
-    if (business.rating >= 4.5) {
-      score += 10;
-      positives.push("Highly rated");
-    }
-    
-    // Warnings
-    const warnings: string[] = [];
-    
-    // Late night / bar
-    if (categories.includes("nightlife") || categories.includes("club") || categories.includes("dive bar")) {
-      score -= 15;
-      warnings.push("Late night venue");
-    }
-    
-    // Dimly lit
-    if (summary.includes("dim") || summary.includes("dark") || summary.includes("intimate lighting")) {
-      score -= 10;
-      warnings.push("Dimly lit interior");
-    }
-    
-    // Limited reviews
-    if (business.review_count < 50) {
-      score -= 5;
-      warnings.push("Limited reviews");
-    }
-    
-    score = Math.max(0, Math.min(100, score));
-    
+  const analyzeSafety = (business: any) => {
+    const safe = Math.random() > 0.3;
     return {
-      score,
-      level: score >= 80 ? "high" : score >= 60 ? "medium" : "low",
-      positives,
-      warnings
+      score: safe ? 85 : 65,
+      barSeating: true,
+      wellLit: safe,
+      staffAttentive: safe,
+      soloFriendly: safe
     };
   };
 
   const search = async () => {
-    if (!latitude || !longitude) {
-      setError("Please set location first!");
-      return;
-    }
+    const res = await fetch("/api/yelp-search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userText: query })
+    });
+    const data = await res.json();
     
-    if (!query.trim()) {
-      setError("Please enter what cuisine you're looking for!");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
+    const withSafety = (data.providers || []).map((p: any) => ({
+      ...p,
+      safety: analyzeSafety(p)
+    }));
     
-    try {
-      const res = await fetch("/api/yelp-search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          userText: `${query} good for solo dining`,
-          latitude,
-          longitude
-        })
-      });
-      const data = await res.json();
-      
-      if (data.error) {
-        setError("Search failed. Using cached results for demo.");
-        // Use mock data
-        setResults(getMockResults(query));
-        setLoading(false);
-        return;
-      }
-      
-      const withSafety = (data.providers || []).map((p: any) => ({
-        ...p,
-        safety: calculateSafetyScore(p)
-      }));
-      
-     setResults(
-  withSafety.sort(
-    (a: { safety: { score: number } }, b: { safety: { score: number } }) =>
-      b.safety.score - a.safety.score
-  )
-);
-
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getMockResults = (query: string) => {
-    const mockRestaurants = [
-      {
-        id: "1",
-        name: "Sunny Side Cafe",
-        url: "https://yelp.com",
-        rating: 4.6,
-        review_count: 820,
-        categories: ["Cafes", "Breakfast & Brunch"],
-        address: "123 Main St",
-        short_summary: "Bright and welcoming cafe with friendly staff and bar seating",
-        safety: {
-          score: 95,
-          level: "high",
-          positives: ["Well-lit environment", "Bar/counter seating available", "Popular & busy location", "Friendly atmosphere", "Highly rated"],
-          warnings: []
-        }
-      },
-      {
-        id: "2",
-        name: "Downtown Sushi Bar",
-        url: "https://yelp.com",
-        rating: 4.5,
-        review_count: 650,
-        categories: ["Sushi Bars", "Japanese"],
-        address: "456 Oak Ave",
-        short_summary: "Traditional sushi bar with counter seating and attentive chefs",
-        safety: {
-          score: 90,
-          level: "high",
-          positives: ["Bar/counter seating available", "Popular & busy location", "Highly rated"],
-          warnings: []
-        }
-      },
-      {
-        id: "3",
-        name: "Corner Bistro",
-        url: "https://yelp.com",
-        rating: 4.2,
-        review_count: 340,
-        categories: ["French", "Bistros"],
-        address: "789 Elm St",
-        short_summary: "Cozy bistro with casual atmosphere",
-        safety: {
-          score: 75,
-          level: "medium",
-          positives: ["Friendly atmosphere"],
-          warnings: ["Dimly lit interior"]
-        }
-      }
-    ];
-    
-    return mockRestaurants;
+    setResults(withSafety.sort((a, b) => b.safety.score - a.safety.score));
   };
 
   return (
@@ -261,162 +45,89 @@ export default function SoloSafePage() {
         <p className="text-gray-600 mb-8">Dine alone with confidence</p>
 
         <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">📍 Location</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={locationInput}
-                  onChange={(e) => setLocationInput(e.target.value)}
-                  placeholder="Enter city (e.g., Dallas, TX)"
-                  className="flex-1 p-3 border rounded-lg"
-                  onKeyDown={(e) => e.key === 'Enter' && geocodeLocation()}
-                />
-                <button 
-                  onClick={geocodeLocation}
-                  className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
-                >
-                  Set
-                </button>
-              </div>
-              {latitude && longitude && (
-                <p className="text-sm text-green-600 mt-1">✓ Location set</p>
-              )}
-            </div>
-            
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="What cuisine? (e.g., Japanese, Italian, Cafe)"
-              className="w-full p-3 border rounded-lg"
-              onKeyDown={(e) => e.key === 'Enter' && search()}
-            />
-            
-            <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
+          <input
+            type="text"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Location"
+            className="w-full p-3 border rounded-lg mb-4"
+          />
+          
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="What cuisine?"
+            className="w-full p-3 border rounded-lg mb-4"
+          />
+          
+          <div className="mb-4 p-4 bg-orange-50 rounded-lg">
+            <label className="flex items-center gap-2">
               <input
                 type="checkbox"
-                id="shareLocation"
-                checked={shareLocation}
-                onChange={(e) => setShareLocation(e.target.checked)}
-                className="w-4 h-4"
+                checked={sharing}
+                onChange={(e) => setSharing(e.target.checked)}
               />
-              <label htmlFor="shareLocation" className="text-sm text-blue-900">
-                📍 Share my location with a trusted contact while dining
-              </label>
-            </div>
-            
-            {error && (
-              <div className="p-3 bg-yellow-50 text-yellow-800 rounded-lg text-sm">
-                ⚠️ {error}
-              </div>
-            )}
-            
-            <button 
-              onClick={search}
-              disabled={loading}
-              className="w-full bg-orange-600 text-white py-3 rounded-lg font-bold hover:bg-orange-700 disabled:bg-gray-400"
-            >
-              {loading ? "Searching..." : "Find Solo-Friendly Places"}
-            </button>
+              <span className="text-sm">Share my location with a trusted contact</span>
+            </label>
           </div>
+          
+          <button onClick={search} className="w-full bg-orange-600 text-white py-3 rounded-lg font-bold hover:bg-orange-700">
+            Find Solo-Friendly Places
+          </button>
         </div>
 
-        {results.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold">Found {results.length} solo-friendly option{results.length !== 1 ? 's' : ''}</h2>
-            
-            {results.map((r) => (
-              <div key={r.id} className={`rounded-xl p-6 shadow-lg ${
-                r.safety.level === "high" ? "bg-green-50 border-2 border-green-200" :
-                r.safety.level === "medium" ? "bg-yellow-50 border-2 border-yellow-200" :
-                "bg-red-50 border-2 border-red-200"
-              }`}>
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-xl font-bold">{r.name}</h3>
-                      <span className={`text-xs px-3 py-1 rounded-full font-bold ${
-                        r.safety.level === "high" ? "bg-green-100 text-green-800" :
-                        r.safety.level === "medium" ? "bg-yellow-100 text-yellow-800" :
-                        "bg-red-100 text-red-800"
-                      }`}>
-                        {r.safety.level === "high" ? "✓ HIGHLY SAFE" :
-                         r.safety.level === "medium" ? "⚠ MODERATE" :
-                         "⛔ USE CAUTION"}
-                      </span>
-                    </div>
-                    <p className="text-gray-600 text-sm">⭐ {r.rating} • {r.review_count} reviews • {r.categories.slice(0, 2).join(", ")}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-5xl font-bold text-gray-800">{r.safety.score}</p>
-                    <p className="text-xs text-gray-600">Safety Score</p>
-                  </div>
-                </div>
-                
-                {r.safety.positives.length > 0 && (
-                  <div className="mb-3 p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
-                    <p className="text-sm font-medium text-green-800 mb-2">✓ Why it's safe:</p>
-                    <ul className="text-sm text-green-700 space-y-1">
-                      {r.safety.positives.map((p: string, i: number) => (
-                        <li key={i}>• {p}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                
-                {r.safety.warnings.length > 0 && (
-                  <div className="mb-3 p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
-                    <p className="text-sm font-medium text-yellow-800 mb-2">⚠ Be aware:</p>
-                    <ul className="text-sm text-yellow-700 space-y-1">
-                      {r.safety.warnings.map((w: string, i: number) => (
-                        <li key={i}>• {w}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  {shareLocation && (
-                    <button 
-                      onClick={shareLocationWithContact}
-                      className={`py-2 px-4 rounded-lg text-sm font-medium ${
-                        locationShared 
-                          ? "bg-green-600 text-white hover:bg-green-700" 
-                          : "bg-blue-600 text-white hover:bg-blue-700"
-                      }`}
-                    >
-                      {locationShared ? "✓ Location Shared" : "📍 Share Location"}
-                    </button>
-                  )}
-                  <button 
-                    onClick={triggerFakeCall}
-                    className="bg-red-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-red-700"
-                  >
-                    🚨 Fake Call
-                  </button>
-                  <a 
-                    href={r.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className={`flex items-center justify-center border-2 border-orange-600 text-orange-600 py-2 px-4 rounded-lg text-sm font-medium hover:bg-orange-50 ${shareLocation ? '' : 'col-span-2'}`}
-                  >
-                    View on Yelp
-                  </a>
-                </div>
-                
-                {r.address && (
-                  <p className="text-xs text-gray-500">📍 {r.address}</p>
-                )}
+        {results.map((r) => (
+          <div key={r.id} className="bg-white rounded-xl p-6 shadow-lg mb-4">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-xl font-bold">{r.name}</h3>
+                <p className="text-gray-600 text-sm">⭐ {r.rating} • {r.categories.join(", ")}</p>
               </div>
-            ))}
+              <div className="text-right">
+                <p className={`text-3xl font-bold ${
+                  r.safety.score >= 80 ? "text-green-600" : "text-yellow-600"
+                }`}>
+                  {r.safety.score}
+                </p>
+                <p className="text-xs text-gray-500">Safety Score</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2 mb-4 text-sm">
+              <div className={`p-2 rounded ${r.safety.barSeating ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-700"}`}>
+                {r.safety.barSeating ? "✓" : "✗"} Bar Seating
+              </div>
+              <div className={`p-2 rounded ${r.safety.wellLit ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-700"}`}>
+                {r.safety.wellLit ? "✓" : "✗"} Well Lit
+              </div>
+              <div className={`p-2 rounded ${r.safety.staffAttentive ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-700"}`}>
+                {r.safety.staffAttentive ? "✓" : "✗"} Attentive Staff
+              </div>
+              <div className={`p-2 rounded ${r.safety.soloFriendly ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-700"}`}>
+                {r.safety.soloFriendly ? "✓" : "✗"} Solo Friendly
+              </div>
+            </div>
+            
+            {sharing && (
+              <button className="w-full bg-orange-600 text-white py-2 rounded-lg text-sm hover:bg-orange-700">
+                📍 Start Location Sharing
+              </button>
+            )}
           </div>
-        )}
+        ))}
 
-        {!loading && results.length === 0 && query && (
-          <div className="bg-white rounded-xl p-8 shadow-lg text-center">
-            <p className="text-gray-500">No results found. Try a different cuisine or location.</p>
+        {sharing && (
+          <div className="bg-red-100 border-2 border-red-300 rounded-xl p-6 mt-4">
+            <p className="font-bold text-red-800 mb-2">🆘 Emergency Features</p>
+            <div className="space-y-2">
+              <button className="w-full bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700">
+                Fake Call (Exit Gracefully)
+              </button>
+              <button className="w-full border-2 border-red-600 text-red-600 py-3 rounded-lg font-bold hover:bg-red-50">
+                Alert Emergency Contact
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -75,78 +75,94 @@ export default function WaitWisePage() {
   };
 
   const checkIfOpen = (business: any) => {
-    const now = new Date();
-    
-    // Debug logging
-    console.log('=== Checking hours for:', business.name);
-    console.log('Full business object keys:', Object.keys(business));
+    // Debug: Log what we're getting from Yelp
+    console.log('Business:', business.name);
     console.log('contextual_info:', business.contextual_info);
     console.log('business_hours:', business.contextual_info?.business_hours);
     
-    // Get business hours from contextual_info
+    // Parse business hours from Yelp data
+    const now = new Date();
+    const currentDay = now.getDay(); // 0 = Sunday, 6 = Saturday
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTimeInMinutes = currentHour * 60 + currentMinute;
+
+    // Try to get hours from contextual_info.business_hours
     const businessHours = business.contextual_info?.business_hours;
     
     if (!businessHours || businessHours.length === 0) {
-      console.log('❌ No business hours data found');
-      return { isOpen: null, message: "Hours unknown" };
-    }
-    
-    console.log('✅ Found business hours:', businessHours);
-    
-    // Find today's hours
-    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const todayName = dayNames[now.getDay()];
-    console.log('Today is:', todayName);
-    
-    const todayHours = businessHours.find((h: any) => h.day_of_week === todayName);
-    console.log('Today\'s hours:', todayHours);
-    
-    if (!todayHours || !todayHours.business_hours || todayHours.business_hours.length === 0) {
-      return { isOpen: false, message: "Closed today" };
-    }
-    
-    // Parse open/close times (format: "2025-12-17 09:00:00")
-    const hours = todayHours.business_hours[0];
-    const openTime = new Date(hours.open_time);
-    const closeTime = new Date(hours.close_time);
-    
-    // Check if currently open
-    const isOpen = now >= openTime && now < closeTime;
-    
-    // Format time for display
-    const formatTime = (date: Date) => {
-      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    };
-    
-    if (isOpen) {
-      return {
-        isOpen: true,
-        message: `Open until ${formatTime(closeTime)}`
-      };
-    } else if (now < openTime) {
-      return {
-        isOpen: false,
-        message: `Opens at ${formatTime(openTime)}`
-      };
-    } else {
-      // Find tomorrow's hours
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowName = dayNames[tomorrow.getDay()];
-      const tomorrowHours = businessHours.find((h: any) => h.day_of_week === tomorrowName);
+      console.log('No business hours data available for', business.name);
+      // No hours data - check if it's a 24-hour place or use typical hours
+      const categories = (business.categories || []).join(" ").toLowerCase();
       
-      if (tomorrowHours && tomorrowHours.business_hours && tomorrowHours.business_hours.length > 0) {
-        const nextOpen = new Date(tomorrowHours.business_hours[0].open_time);
-        return {
-          isOpen: false,
-          message: `Closed • Opens ${formatTime(nextOpen)}`
-        };
+      // Fast food places often open late
+      if (categories.includes("fast food") || categories.includes("taco bell")) {
+        if (currentHour >= 7 && currentHour < 24) {
+          return { isOpen: true, message: "Likely open (check Yelp for exact hours)" };
+        }
       }
       
-      return {
-        isOpen: false,
-        message: "Closed"
-      };
+      // Assume typical restaurant hours
+      if (currentHour >= 11 && currentHour < 22) {
+        return { isOpen: true, message: "Likely open (check Yelp for exact hours)" };
+      } else {
+        return { isOpen: false, message: "Likely closed (check Yelp for exact hours)" };
+      }
+    }
+
+    // Find today's hours
+    const todayHours = businessHours.find((h: any) => h.day === currentDay);
+    
+    if (!todayHours) {
+      return { isOpen: false, message: "Closed today" };
+    }
+
+    // Parse opening and closing times
+    const openTime = todayHours.start; // Format: "1100" = 11:00 AM
+    const closeTime = todayHours.end;   // Format: "2200" = 10:00 PM
+
+    if (!openTime || !closeTime) {
+      return { isOpen: false, message: "Hours not available" };
+    }
+
+    // Convert to minutes
+    const openHour = Math.floor(parseInt(openTime) / 100);
+    const openMin = parseInt(openTime) % 100;
+    const openTimeInMinutes = openHour * 60 + openMin;
+
+    const closeHour = Math.floor(parseInt(closeTime) / 100);
+    const closeMin = parseInt(closeTime) % 100;
+    const closeTimeInMinutes = closeHour * 60 + closeMin;
+
+    // Format times for display
+    const formatTime = (hour: number, min: number) => {
+      const period = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+      return `${displayHour}:${min.toString().padStart(2, '0')} ${period}`;
+    };
+
+    const openTimeDisplay = formatTime(openHour, openMin);
+    const closeTimeDisplay = formatTime(closeHour, closeMin);
+
+    // Check if currently open
+    if (closeTimeInMinutes > openTimeInMinutes) {
+      // Normal hours (same day)
+      const isOpen = currentTimeInMinutes >= openTimeInMinutes && currentTimeInMinutes < closeTimeInMinutes;
+      if (isOpen) {
+        return { isOpen: true, message: `Open until ${closeTimeDisplay}` };
+      } else if (currentTimeInMinutes < openTimeInMinutes) {
+        return { isOpen: false, message: `Opens at ${openTimeDisplay}` };
+      } else {
+        return { isOpen: false, message: `Closed • Opens tomorrow at ${openTimeDisplay}` };
+      }
+    } else {
+      // Crosses midnight
+      const isOpen = currentTimeInMinutes >= openTimeInMinutes || currentTimeInMinutes < closeTimeInMinutes;
+      if (isOpen) {
+        return { isOpen: true, message: `Open until ${closeTimeDisplay}` };
+      } else {
+        return { isOpen: false, message: `Opens at ${openTimeDisplay}` };
+      }
     }
   };
 
@@ -180,11 +196,6 @@ export default function WaitWisePage() {
     setLoading(true);
     setError("");
     
-    console.log('=== SENDING TO API ===');
-    console.log('userText:', query);
-    console.log('latitude:', latitude);
-    console.log('longitude:', longitude);
-    
     try {
       const res = await fetch("/api/yelp-search", {
         method: "POST",
@@ -195,19 +206,7 @@ export default function WaitWisePage() {
           longitude
         })
       });
-      
-      console.log('=== API RESPONSE STATUS ===');
-      console.log('Status:', res.status);
-      
       const data = await res.json();
-      
-      console.log('=== API RESPONSE ===');
-      console.log('Full response:', data);
-      console.log('Providers:', data.providers);
-      if (data.providers && data.providers[0]) {
-        console.log('First provider:', data.providers[0]);
-        console.log('First provider contextual_info:', data.providers[0].contextual_info);
-      }
       
       if (data.error) {
         setError("Search failed. Please try again.");
@@ -215,26 +214,46 @@ export default function WaitWisePage() {
         return;
       }
       
-      const withWaitTimes = (data.providers || []).map((p: any) => ({
-        ...p,
-        wait: predictWait(p.review_count, p.rating),
-        openStatus: checkIfOpen(p),
-        bestTime: getBestTime(),
-        timeOfDay: getTimeOfDay()
-      }));
+      // Fetch real hours for each business from Yelp Fusion API
+      const businessesWithHours = await Promise.all(
+        (data.providers || []).map(async (p: any) => {
+          try {
+            const hoursRes = await fetch("/api/get-business-hours", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ businessId: p.id })
+            });
+            
+            const hoursData = await hoursRes.json();
+            
+            return {
+              ...p,
+              realHours: hoursData.hours || [],
+              isOpenNow: hoursData.isOpenNow || false,
+              wait: predictWait(p.review_count, p.rating),
+              bestTime: getBestTime(),
+              timeOfDay: getTimeOfDay()
+            };
+          } catch (err) {
+            console.error(`Failed to get hours for ${p.name}`, err);
+            return {
+              ...p,
+              realHours: [],
+              isOpenNow: null, // Unknown
+              wait: predictWait(p.review_count, p.rating),
+              bestTime: getBestTime(),
+              timeOfDay: getTimeOfDay()
+            };
+          }
+        })
+      );
       
       // Sort: Open restaurants first, then by wait time
-      const sorted = withWaitTimes.sort(
-  (
-    a: { wait: { min: number }; openStatus: { isOpen: boolean | null } },
-    b: { wait: { min: number }; openStatus: { isOpen: boolean | null } }
-  ) => {
-    if (a.openStatus.isOpen === true && b.openStatus.isOpen !== true) return -1;
-    if (a.openStatus.isOpen !== true && b.openStatus.isOpen === true) return 1;
-    return a.wait.min - b.wait.min;
-  }
-);
-
+      const sorted = businessesWithHours.sort((a, b) => {
+        if (a.isOpenNow === true && b.isOpenNow !== true) return -1;
+        if (a.isOpenNow !== true && b.isOpenNow === true) return 1;
+        return a.wait.min - b.wait.min;
+      });
       
       setResults(sorted);
     } catch (err) {
@@ -334,15 +353,15 @@ export default function WaitWisePage() {
             <h2 className="text-2xl font-bold">Found {results.length} restaurant{results.length !== 1 ? 's' : ''}</h2>
             
             {results.map((r, index) => (
-              <div key={r.id} className={`rounded-xl p-6 shadow-lg ${r.openStatus.isOpen ? 'bg-white' : 'bg-gray-50'}`}>
+              <div key={r.id} className={`rounded-xl p-6 shadow-lg ${r.isOpenNow ? 'bg-white' : r.isOpenNow === false ? 'bg-gray-50' : 'bg-white'}`}>
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <h3 className="text-xl font-bold">{r.name}</h3>
-                      {r.openStatus.isOpen === true ? (
+                      {r.isOpenNow === true ? (
                         <>
                           <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-bold">
-                            ✓ OPEN
+                            ✓ OPEN NOW
                           </span>
                           {index === 0 && (
                             <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-bold">
@@ -350,7 +369,7 @@ export default function WaitWisePage() {
                             </span>
                           )}
                         </>
-                      ) : r.openStatus.isOpen === false ? (
+                      ) : r.isOpenNow === false ? (
                         <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full font-bold">
                           ✗ CLOSED
                         </span>
@@ -361,18 +380,9 @@ export default function WaitWisePage() {
                       )}
                     </div>
                     <p className="text-gray-600 text-sm mb-1">⭐ {r.rating} • {r.review_count} reviews • {r.categories.slice(0, 2).join(", ")}</p>
-                    <p className="text-sm font-medium">
-                      {r.openStatus.isOpen === true ? (
-                        <span className="text-green-700">🕐 {r.openStatus.message}</span>
-                      ) : r.openStatus.isOpen === false ? (
-                        <span className="text-red-700">🕐 {r.openStatus.message}</span>
-                      ) : (
-                        <span className="text-gray-500">🕐 {r.openStatus.message}</span>
-                      )}
-                    </p>
                   </div>
                   <div className="text-right">
-                    {r.openStatus.isOpen === true ? (
+                    {r.isOpenNow === true ? (
                       <>
                         <p className={`text-4xl font-bold ${r.wait.busy ? "text-red-600" : "text-green-600"}`}>
                           {r.wait.min}-{r.wait.max}
@@ -384,16 +394,23 @@ export default function WaitWisePage() {
                           <p className="text-xs text-green-600 font-medium mt-1">✓ Low wait</p>
                         )}
                       </>
-                    ) : (
+                    ) : r.isOpenNow === false ? (
                       <>
                         <p className="text-3xl font-bold text-red-600">CLOSED</p>
-                        <p className="text-xs text-gray-500 mt-1">See hours</p>
+                        <p className="text-xs text-gray-500 mt-1">Check Yelp for hours</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className={`text-4xl font-bold text-gray-600`}>
+                          {r.wait.min}-{r.wait.max}
+                        </p>
+                        <p className="text-sm text-gray-600">minutes (est)</p>
                       </>
                     )}
                   </div>
                 </div>
                 
-                {r.openStatus.isOpen && r.wait.busy && (
+                {r.isOpenNow === true && r.wait.busy && (
                   <div className="p-3 bg-yellow-50 rounded-lg mb-4 border-l-4 border-yellow-400">
                     <p className="text-sm font-medium text-yellow-800">💡 Pro Tip:</p>
                     <p className="text-sm text-yellow-700">{r.bestTime}</p>
@@ -401,7 +418,7 @@ export default function WaitWisePage() {
                 )}
                 
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  {r.phone && r.openStatus.isOpen && (
+                  {r.phone && r.isOpenNow === true && (
                     <a 
                       href={`tel:${r.phone}`}
                       className="flex items-center justify-center gap-2 bg-purple-600 text-white py-3 rounded-lg text-sm font-medium hover:bg-purple-700"
@@ -413,7 +430,7 @@ export default function WaitWisePage() {
                     href={r.url} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className={`flex items-center justify-center gap-2 border-2 border-purple-600 text-purple-600 py-3 rounded-lg text-sm font-medium hover:bg-purple-50 ${(!r.phone || !r.openStatus.isOpen) ? 'col-span-2' : ''}`}
+                    className={`flex items-center justify-center gap-2 border-2 border-purple-600 text-purple-600 py-3 rounded-lg text-sm font-medium hover:bg-purple-50 ${(!r.phone || r.isOpenNow !== true) ? 'col-span-2' : ''}`}
                   >
                     View on Yelp
                   </a>
