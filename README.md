@@ -1,76 +1,93 @@
-# ?? LocalAI - Your Smart Local Discovery Assistant
+# LocalAI – Local Discovery Tools for Everyday Decisions
 
-AI-powered suite of 6 specialized tools that transform how you discover and experience local businesses using Yelp's AI API.
+LocalAI is a suite of six focused tools designed to help users discover, evaluate, and plan local experiences using structured business data from Yelp. The project emphasizes clarity, practicality, and real-world usability over generic keyword-based search.
 
-![LocalAI Demo](screenshot.png)
+---
 
-## ?? Features
+## Features
 
-### 1. ?? TruePrice
-See the **real** cost of dining out - menu + tax + tip + parking
+### 1. TruePrice
+Estimates the total cost of dining, including menu price, tax, tip, and common add-ons such as parking, helping users avoid surprise expenses.
 
-### 2. ??? SafeEats
-Allergy safety scoring (0-100) with personalized warnings
+### 2. SafeEats
+Provides allergy-awareness insights based on restaurant data, allowing users to make safer dining decisions.
 
-### 3. ? WaitWise
-Real-time wait time predictions with open/closed status
+### 3. WaitWise
+Displays current open or closed status and estimates expected wait times to help users plan visits efficiently.
 
-### 4. ?? DateStack
-One-click date night planning within your budget
+### 4. DateStack
+Assists with planning date-night options by combining venue type, budget considerations, and availability.
 
-### 5. ?? SoloSafe
-Safety scores for solo dining with emergency features
+### 5. SoloSafe
+Surfaces safety-related indicators useful for individuals dining or visiting locations alone.
 
-### 6. ?? QuickFind
-Natural language search for any local service
+### 6. QuickFind
+Allows users to search for local services using natural language queries instead of rigid category filters.
 
-## ??? Built With
+---
 
-- **Next.js 14** - React framework
-- **TypeScript** - Type safety
-- **Tailwind CSS** - Styling
-- **Yelp AI API** - Business data
-- **Vercel** - Deployment
+## Technology Stack
 
-## ?? Getting Started
+- Next.js (App Router)
+- TypeScript
+- Tailwind CSS
+- Yelp Fusion API
+- Node.js
+
+---
+
+## Getting Started
 
 ### Prerequisites
-- Node.js 18+
-- Yelp AI API key ([Get one here](https://www.yelp.com/developers))
+- Node.js version 18 or higher
+- Yelp API key
 
 ### Installation
 
-1. Clone the repository
+1. Clone the repository:
 ```bash
-git clone https://github.com/YOUR_USERNAME/localai-app.git
+git clone https://github.com/koushikark22/localai-app.git
 cd localai-app
 ```
 
-2. Install dependencies
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Create `.env.local` file
+3. Create an environment file:
 ```bash
-YELP_AI_API_KEY=your_api_key_here
+cp .env.local.example .env.local
 ```
 
-4. Run development server
+4. Add your Yelp API key to `.env.local`:
+```bash
+YELP_API_KEY=your_api_key_here
+```
+
+5. Start the development server:
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000)
+6. Open your browser at:
+```
+http://localhost:3000
+```
 
-## ?? Project Structure
+---
+
+## Project Structure
+
 ```
 localai-app/
 +-- app/
-¦   +-- page.tsx                 # Homepage
+¦   +-- page.tsx
 ¦   +-- api/
 ¦   ¦   +-- yelp-search/
-¦   ¦       +-- route.ts         # Yelp API integration
+¦   ¦   ¦   +-- route.ts
+¦   ¦   +-- yelp-quote/
+¦   ¦   +-- get-business-hours/
 ¦   +-- tools/
 ¦       +-- trueprice/
 ¦       +-- safeeats/
@@ -80,25 +97,25 @@ localai-app/
 ¦       +-- quickfind/
 +-- public/
 +-- package.json
++-- README.md
 ```
 
-## ?? Demo
+---
 
-[Live Demo](https://your-deployment-url.vercel.app)
+## Demo
 
-## ?? Hackathon Submission
+If deployed, the application can be accessed via a hosted URL.  
+Otherwise, the full functionality is available through local development.
 
-Built for **Yelp AI API Hackathon 2024**
+---
 
-## ?? License
+## License
 
-MIT License
+This project is licensed under the MIT License.
 
-## ?? Author
+---
 
-Your Name - [GitHub](https://github.com/YOUR_USERNAME)
+## Author
 
-## ?? Acknowledgments
-
-- Yelp for the amazing AI API
-- Anthropic Claude for development assistance
+Koushik Anand  
+GitHub: https://github.com/koushikark22
