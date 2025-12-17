@@ -185,10 +185,13 @@ export default function SoloSafePage() {
         safety: calculateSafetyScore(p)
       }));
       
-      setResults(withSafety.sort((a, b) => b.safety.score - a.safety.score));
-    } catch (err) {
-      setError("Using demo data due to connectivity.");
-      setResults(getMockResults(query));
+     setResults(
+  withSafety.sort(
+    (a: { safety: { score: number } }, b: { safety: { score: number } }) =>
+      b.safety.score - a.safety.score
+  )
+);
+
     } finally {
       setLoading(false);
     }
