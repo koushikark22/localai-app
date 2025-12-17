@@ -39,7 +39,7 @@ Allows users to search for local services using natural language queries instead
 ## Getting Started
 
 ### Prerequisites
-- Node.js version 18 or higher
+- Node.js version 14 or higher
 - Yelp API key
 
 ### Installation
@@ -109,11 +109,6 @@ Otherwise, the full functionality is available through local development.
 
 ---
 
-## License
-
-This project is licensed under the MIT License.
-
----
 
 ## Author
 
